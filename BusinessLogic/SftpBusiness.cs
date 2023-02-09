@@ -30,6 +30,7 @@ namespace BusinessLogic
             try
             {
                 using var sftpClient = new SftpClient(_pathSetting.SftpCredentials.Sftp, _pathSetting.SftpCredentials.Port, _pathSetting.SftpCredentials.Username, _pathSetting.SftpCredentials.Password);
+                //using (SftpClient sftpClient = new Renci.SshNet.SftpClient("74.205.82.143", 22, "richardA", "Onvida!sThePlace2B"))
                 sftpClient.Connect();
 
                 //get source folder
@@ -68,50 +69,77 @@ namespace BusinessLogic
             return sourceFiles;
         }
 
-        /// <summary>
+       /// <summary>
         /// Monitor folder for files
         /// </summary>
         /// <returns>The list of files</returns>
         public async Task<List<string>> UploadFilesToServer()
         {
             var sourceFiles = await MonitorFolder();
-            var savedMonitoredFileInfoList = new List<FileMonitor>();
-
-            using var sftpClient = new SftpClient(_pathSetting.SftpCredentials.Sftp, _pathSetting.SftpCredentials.Port, _pathSetting.SftpCredentials.Username, _pathSetting.SftpCredentials.Password);
-            
+            var savedMonitredFileInfoList = new List<FileMonitor>();
+            //string[] fileEntries = new string[]; 
             try
             {
-                sftpClient.Connect();
-
-                //get source folder
-                var serverFolder = _pathSetting.DestinationFolder;
-
-                if (sourceFiles.Any())
+                //host, port, username, paswword
+               using var sftpClient = new SftpClient(_pathSetting.SftpCredentials.Sftp, _pathSetting.SftpCredentials.Port, _pathSetting.SftpCredentials.Username, _pathSetting.SftpCredentials.Password);
+               //using (SftpClient sftpClient = new Renci.SshNet.SftpClient("74.205.82.143", 22, "richardA", "Onvida!sThePlace2B"))
                 {
-                    foreach(var file in sourceFiles)
+                    sftpClient.Connect();
+                    //get directories
+                    string working_directory = sftpClient.WorkingDirectory;
+                    var newFolder = "Uploaded Zip Files";
+                    //string current = "";
+
+                    //if (working_directory[0] == '/')
+                    //{
+                    //    var directories = sftpClient.ListDirectory(working_directory);
+                    //}
+                   // var directories = sftpClient.ListDirectory(working_directory);
+
+                    //get source folder
+                    //var serverFolder = _patheSetting.DestinationFolder;
+
+                    
+                    sftpClient.ChangeDirectory(working_directory);
+
+                    if (sourceFiles != null && sourceFiles.Any())
                     {
-                        await using(Stream stream = File.OpenRead(file))
+                        foreach(var file in sourceFiles)
                         {
-                            sftpClient.UploadFile(stream, serverFolder + Path.GetFileName(file), Console.Write);
+                            using (Stream stream = File.OpenRead(file))
+                            {
+                                sftpClient.UploadFile(stream, working_directory + Path.GetFileName(file), x =>
+                                {
+                                    Console.Write(x);
+                                });
+                            }
+
+                            //using (var stream = new FileStream(file, FileMode.Open))
+                            //{
+                            //    var content = Path.GetFileName(file);   
+                            //    sftpClient.UploadFile(stream, content, x =>
+                            //    {
+                            //        Console.Write(x);
+                            //    });
+                            //}
+
+                            //save copied files info into DB
+                            var monitoredFile = new FileMonitor();
+                            monitoredFile.TimeCopied = DateTime.UtcNow;
+                            byte[] bytes = System.IO.File.ReadAllBytes(file);
+                            monitoredFile.FileCopied = bytes;
+
+                            //add to list
+                            savedMonitredFileInfoList.Add(monitoredFile);
+
+                            //save monitored info
+                            await SaveCopiedInfo(savedMonitredFileInfoList);
                         }
-
-                        //save copied files info into DB
-                        var monitoredFile = new FileMonitor
-                        {
-                            TimeCopied = DateTime.UtcNow
-                        };
-                        var bytes = await System.IO.File.ReadAllBytesAsync(file);
-                        monitoredFile.FileCopied = bytes;
-                        
-                        //add to list
-                        savedMonitoredFileInfoList.Add(monitoredFile);
-
-                        //save monitored info
-                        await SaveCopiedInfo(savedMonitoredFileInfoList);
                     }
+
+
+                    sftpClient.Disconnect();
                 }
-                
-                sftpClient.Disconnect();
             }
             catch (Exception ex)
             {
