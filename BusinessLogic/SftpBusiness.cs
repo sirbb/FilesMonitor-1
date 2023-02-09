@@ -90,11 +90,14 @@ namespace BusinessLogic
                     var newFolder = "Uploaded Zip Files";
                     //string current = "";
 
+
                     //if (working_directory[0] == '/')
                     //{
                     //    var directories = sftpClient.ListDirectory(working_directory);
                     //}
-                   // var directories = sftpClient.ListDirectory(working_directory);
+                   // var directories = sftpClient.ListDirectory(working_directory)
+               string serverFolder = sftpClient.WorkingDirectory;
+               sftpClient.ChangeDirectory(working_directory);
 
                     //get source folder
                     //var serverFolder = _patheSetting.DestinationFolder;
