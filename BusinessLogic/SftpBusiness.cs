@@ -83,8 +83,8 @@ namespace BusinessLogic
             {
                 sftpClient.Connect();
 
-                //get source folder
-                var serverFolder = _pathSetting.DestinationFolder;
+               string serverFolder = sftpClient.WorkingDirectory;
+               sftpClient.ChangeDirectory(working_directory);
 
                 if (sourceFiles.Any())
                 {
